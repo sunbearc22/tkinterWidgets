@@ -1,2 +1,2 @@
 # tkinterWidgets
-A repository for tkinter widgets.
+A repository of custom built tkinter widgets.
