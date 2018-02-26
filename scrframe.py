@@ -1,69 +1,165 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
-from Tkinter import *   # from x import * is bad practice
-from ttk import *
 
-# http://tkinter.unpythonic.net/wiki/VerticalScrolledFrame
+try:
+    import tkinter as tk
+    import tkinter.ttk as ttk
+except:
+    import Tkinter as tk
+    import ttk as ttk
 
-class VerticalScrolledFrame(Frame):
-    """A pure Tkinter scrollable frame that actually works!
-    * Use the 'interior' attribute to place widgets inside the scrollable frame
-    * Construct and pack/place/grid normally
-    * This frame only allows vertical scrolling
+class VerticalScrollFrame(ttk.Frame):
+    """A ttk frame allowing vertical scrolling only.
+    Use the '.interior' attribute to place widgets inside the scrollable frame.
 
+    Adapted from https://gist.github.com/EugeneBakin/76c8f9bcec5b390e45df.
+    Amendments:
+    1. Original logic for configuring the interior frame and canvas
+       scrollregion left canvas regions exposed (not suppose to) and allowed
+       vertical scrolling even when canvas height is greater than the canvas
+       required height, respectively. I have provided a new logic to
+       resolve these issues.
+    2. Provided options to configure the styles of the ttk widgets.
+    3. Tested in Python 3.5.2 (default, Nov 23 2017, 16:37:01),
+                 Python 2.7.12 (default, Dec  4 2017, 14:50:18) and
+                 [GCC 5.4.0 20160609] on linux.
+
+    Author: Sunbear
+    Website: https://github.com/sunbearc22
+    Created on: 2018-02-26
     """
-    def __init__(self, parent, *args, **kw):
-        Frame.__init__(self, parent, *args, **kw)            
 
-        # create a canvas object and a vertical scrollbar for scrolling it
-        vscrollbar = Scrollbar(self, orient=VERTICAL)
-        vscrollbar.pack(fill=Y, side=RIGHT, expand=FALSE)
-        canvas = Canvas(self, bd=0, highlightthickness=0,
-                        yscrollcommand=vscrollbar.set)
-        canvas.pack(side=LEFT, fill=BOTH, expand=TRUE)
-        vscrollbar.config(command=canvas.yview)
+    
+    def __init__(self, parent, *args, **options):
+        """
+        WIDGET-SPECIFIC OPTIONS:
+           style, pri_background, sec_background, arrowcolor,
+           outerborderwidth, interiorborderwidth, outerrelief, interiorrelief 
+        """
+        # Extract key and value from **options using Python3 "pop" function:
+        #   pop(key[, default])
+        style          = options.pop('style',ttk.Style())
+        pri_background = options.pop('pri_background','light grey')
+        sec_background = options.pop('sec_background','light grey')
+        arrowcolor     = options.pop('arrowcolor','black')
+        outerborderwidth    = options.pop('outerborderwidth', 0)
+        interiorborderwidth = options.pop('interiorborderwidth', 0)
+        outerrelief         = options.pop('outerrelief', 'flat')
+        interiorrelief      = options.pop('interiorrelief', 'flat')
+
+        ttk.Frame.__init__(self, parent, style='scr.TFrame',
+                           borderwidth=outerborderwidth, relief=outerrelief)
+
+        self.__setStyle(style, pri_background, sec_background, arrowcolor)
+        self.__createWidgets(outerborderwidth, interiorborderwidth,
+                             outerrelief, interiorrelief,
+                             pri_background)
+        self.__setBindings()
+
+
+    def __setStyle(self, style, pri_background, sec_background, arrowcolor):
+        '''Setup stylenames of outer frame, interior frame and verticle
+           scrollbar'''
+        
+        style.configure('scr.TFrame', background=pri_background)
+        style.configure('scrframe.Vertical.TScrollbar',
+                        background=pri_background, troughcolor=sec_background,
+                        arrowcolor=arrowcolor)
+        style.configure('interior.TFrame', background=pri_background)
+
+        style.map('scrframe.Vertical.TScrollbar',
+            background=[('active',pri_background),('!active',pri_background)],
+            arrowcolor=[('active',arrowcolor),('!active',arrowcolor)])
+
+
+    def __createWidgets(self, outerborderwidth, interiorborderwidth,
+                        outerrelief, interiorrelief, pri_background):
+        '''Create widgets of the scroll frame.'''
+        vscrollbar = ttk.Scrollbar(self,
+                                   orient='vertical',
+                                   style='scrframe.Vertical.TScrollbar')
+        vscrollbar.pack(fill='y', side='right', expand='false')
+        self.canvas = tk.Canvas(self,
+                                bd=0,
+                                #highlightthickness=0,
+                                yscrollcommand=vscrollbar.set,
+                                #background='white')
+                                background=pri_background) #
+        self.canvas.pack(side='left', fill='both', expand='true')
+        vscrollbar.config(command=self.canvas.yview)
 
         # reset the view
-        canvas.xview_moveto(0)
-        canvas.yview_moveto(0)
+        self.canvas.xview_moveto(0)
+        self.canvas.yview_moveto(0)
 
         # create a frame inside the canvas which will be scrolled with it
-        self.interior = interior = Frame(canvas)
-        interior_id = canvas.create_window(0, 0, window=interior,
-                                           anchor=NW)
+        self.interior = ttk.Frame(self.canvas,
+                                  style='interior.TFrame',
+                                  borderwidth=interiorborderwidth,
+                                  relief=interiorrelief)
+        self.interior_id = self.canvas.create_window(0, 0,
+                                                     window=self.interior,
+                                                     anchor='nw')
 
-        # track changes to the canvas and frame width and sync them,
-        # also updating the scrollbar
-        def _configure_interior(event):
-            # update the scrollbars to match the size of the inner frame
-            size = (interior.winfo_reqwidth(), interior.winfo_reqheight())
-            canvas.config(scrollregion="0 0 %s %s" % size)
-            if interior.winfo_reqwidth() != canvas.winfo_width():
-                # update the canvas's width to fit the inner frame
-                canvas.config(width=interior.winfo_reqwidth())
-        interior.bind('<Configure>', _configure_interior)
 
-        def _configure_canvas(event):
-            if interior.winfo_reqwidth() != canvas.winfo_width():
-                # update the inner frame's width to fill the canvas
-                canvas.itemconfigure(interior_id, width=canvas.winfo_width())
-        canvas.bind('<Configure>', _configure_canvas)
+    def __setBindings(self):
+        '''Activate binding to configure scroll frame widgets.'''
+        self.canvas.bind('<Configure>',self.__configure_canvas_interiorframe)
+        
+
+    def __configure_canvas_interiorframe(self, event):
+        '''Configure the interior frame size and the canvas scrollregion'''
+        
+        #Force the update of .winfo_width() and winfo_height()
+        self.canvas.update_idletasks() 
+
+        #Internal parameters 
+        canvasReqWidth = self.canvas.winfo_reqwidth()
+        canvasReqHeight= self.canvas.winfo_reqheight()
+        canvasWidth  = self.canvas.winfo_width()
+        canvasHeight = self.canvas.winfo_height()
+
+        #Set interior frame width to canvas curent width
+        self.canvas.itemconfigure(self.interior_id, width=canvasWidth)
+        
+        if canvasHeight >= canvasReqHeight:
+            # Set interior frame height same as canvas current height
+            self.canvas.itemconfigure(self.interior_id,  height=canvasHeight)
+            # Set canvas scrollregion using canvas current width and height
+            self.canvas.config(scrollregion="0 0 {0} {1}".
+                               format(canvasWidth, canvasHeight))
+        else:
+            # Set interior frame height same as canvas required height
+            self.canvas.itemconfigure(self.interior_id, height=canvasReqHeight)
+            # Set canvas scrollregion using canvas current width and canvas
+            # required height
+            self.canvas.config(scrollregion="0 0 {0} {1}".
+                               format(canvasWidth, canvasReqHeight))
 
 
 if __name__ == "__main__":
 
-    class SampleApp(Tk):
+    class SampleApp(tk.Tk):
         def __init__(self, *args, **kwargs):
-            root = Tk.__init__(self, *args, **kwargs)
-
-
-            self.frame = VerticalScrolledFrame(root)
-            self.frame.pack()
-            self.label = Label(text="Shrink the window to activate the scrollbar.")
+            BG0 = '#aabfe0'
+            BG1 = '#4e88e5'
+            root = tk.Tk.__init__(self, *args, **kwargs)
+            self.frame = VerticalScrollFrame(root,
+                                             pri_background=BG1,
+                                             sec_background=BG0,
+                                             arrowcolor='white',
+                                             outerborderwidth=20,
+                                             interiorborderwidth=10,
+                                             outerrelief='raised',
+                                             interiorrelief='sunken'
+                                             )
+            self.frame.pack(fill='both', expand=1)
+            self.label = ttk.Label(text="Shrink the window to activate the scrollbar.")
             self.label.pack()
             buttons = []
             for i in range(10):
-                buttons.append(Button(self.frame.interior, text="Button " + str(i)))
+                buttons.append(ttk.Button(self.frame.interior,
+                                          text="Button " + str(i)))
                 buttons[-1].pack()
 
     app = SampleApp()
