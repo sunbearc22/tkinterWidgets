@@ -40,7 +40,7 @@ class VerticalScrollFrame(ttk.Frame):
         #   pop(key[, default])
         style          = options.pop('style',ttk.Style())
         pri_background = options.pop('pri_background','light grey')
-        sec_background = options.pop('sec_background','light grey')
+        sec_background = options.pop('sec_background','grey70')
         arrowcolor     = options.pop('arrowcolor','black')
         outerborderwidth    = options.pop('outerborderwidth', 0)
         interiorborderwidth = options.pop('interiorborderwidth', 0)
@@ -80,11 +80,10 @@ class VerticalScrollFrame(ttk.Frame):
                                    style='scrframe.Vertical.TScrollbar')
         vscrollbar.pack(fill='y', side='right', expand='false')
         self.canvas = tk.Canvas(self,
-                                bd=0,
-                                #highlightthickness=0,
-                                yscrollcommand=vscrollbar.set,
-                                #background='white')
-                                background=pri_background) #
+                                bd=0, #no border
+                                highlightthickness=0, #no focus highlight
+                                yscrollcommand=vscrollbar.set,#use vscrollbar
+                                background=pri_background) #improves resizing appearance
         self.canvas.pack(side='left', fill='both', expand='true')
         vscrollbar.config(command=self.canvas.yview)
 
@@ -114,37 +113,45 @@ class VerticalScrollFrame(ttk.Frame):
         self.canvas.update_idletasks() 
 
         #Internal parameters 
-        canvasReqWidth = self.canvas.winfo_reqwidth()
+        canvasReqWidth = self.canvas.winfo_reqwidth() #not used
         canvasReqHeight= self.canvas.winfo_reqheight()
         canvasWidth  = self.canvas.winfo_width()
         canvasHeight = self.canvas.winfo_height()
 
+        box=self.canvas.bbox('all')
+        print('box = ', box)
+        print('Req = ', canvasReqWidth, canvasReqHeight)
+        print('Cur = ', canvasWidth, canvasHeight)
+
+
         #Set interior frame width to canvas curent width
         self.canvas.itemconfigure(self.interior_id, width=canvasWidth)
         
+        # Set interior frame height and canvas scrollregion
         if canvasHeight >= canvasReqHeight:
-            # Set interior frame height same as canvas current height
             self.canvas.itemconfigure(self.interior_id,  height=canvasHeight)
-            # Set canvas scrollregion using canvas current width and height
             self.canvas.config(scrollregion="0 0 {0} {1}".
                                format(canvasWidth, canvasHeight))
         else:
-            # Set interior frame height same as canvas required height
             self.canvas.itemconfigure(self.interior_id, height=canvasReqHeight)
-            # Set canvas scrollregion using canvas current width and canvas
-            # required height
             self.canvas.config(scrollregion="0 0 {0} {1}".
                                format(canvasWidth, canvasReqHeight))
+
 
 
 if __name__ == "__main__":
 
     class SampleApp(tk.Tk):
         def __init__(self, *args, **kwargs):
-            BG0 = '#aabfe0'
-            BG1 = '#4e88e5'
-            root = tk.Tk.__init__(self, *args, **kwargs)
-            self.frame = VerticalScrollFrame(root,
+            #BG0 = '#656868' #Dark scheme
+            #BG1 = '#424545' #Dark scheme
+            BG0 = '#aabfe0' #Blue scheme
+            BG1 = '#4e88e5' #Blue scheme
+            tk.Tk.__init__(self, *args, **kwargs)
+            top = self.winfo_toplevel()
+            top.title('VerticalScrollFrame')
+            top.geometry('270x330')
+            self.frame = VerticalScrollFrame(self,
                                              pri_background=BG1,
                                              sec_background=BG0,
                                              arrowcolor='white',
@@ -154,7 +161,8 @@ if __name__ == "__main__":
                                              interiorrelief='sunken'
                                              )
             self.frame.pack(fill='both', expand=1)
-            self.label = ttk.Label(text="Shrink the window to activate the scrollbar.")
+            self.label = tk.Label(background='white',
+                text="Shrink the window to activate the scrollbar.")
             self.label.pack()
             buttons = []
             for i in range(10):
@@ -164,3 +172,4 @@ if __name__ == "__main__":
 
     app = SampleApp()
     app.mainloop()
+
