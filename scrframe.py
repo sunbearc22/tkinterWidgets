@@ -1,91 +1,102 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-try:
-    import tkinter as tk
-    import tkinter.ttk as ttk
-except:
-    import Tkinter as tk
-    import ttk as ttk
+import tkinter as tk
+import tkinter.ttk as ttk
+import platform
+
+
+class AutoScrollbar(ttk.Scrollbar):
+    """
+    class created on 08 August 1998 by Fredrik Lundh
+    http://effbot.org/zone/tkinter-autoscrollbar.htm
+    """
+    # a scrollbar that hides itself if it's not needed.  only
+    # works if used with the .Grid geometry manager.
+    def set(self, lo, hi):
+        if float(lo) <= 0.0 and float(hi) >= 1.0:
+            self.tk.call("grid", "remove", self)
+        else:
+            self.grid()
+        ttk.Scrollbar.set(self, lo, hi)
+
+    def pack(self, **kw):
+        raise tk.TclError("cannot use pack with this widget")
+
+    def place(self, **kw):
+        raise tk.TclError("cannot use place with this widget")
+
 
 class VerticalScrollFrame(ttk.Frame):
     """A ttk frame allowing vertical scrolling only.
     Use the '.interior' attribute to place widgets inside the scrollable frame.
-
-    Adapted from https://gist.github.com/EugeneBakin/76c8f9bcec5b390e45df.
-    Amendments:
-    1. Original logic for configuring the interior frame and canvas
-       scrollregion left canvas regions exposed (not suppose to) and allowed
-       vertical scrolling even when canvas height is greater than the canvas
-       required height, respectively. I have provided a new logic to
-       resolve these issues.
-    2. Provided options to configure the styles of the ttk widgets.
-    3. Tested in Python 3.5.2 (default, Nov 23 2017, 16:37:01),
-                 Python 2.7.12 (default, Dec  4 2017, 14:50:18) and
-                 [GCC 5.4.0 20160609] on linux.
-
-    Author: Sunbear
-    Website: https://github.com/sunbearc22
-    Created on: 2018-02-26
-    Amended on: 2018-03-01 - corrected __configure_canvas_interiorframe() logic.  
     """
 
-    
-    def __init__(self, parent, *args, **options):
+    def __init__(self, parent, **options):
         """
         WIDGET-SPECIFIC OPTIONS:
-           style, pri_background, sec_background, arrowcolor,
+           style, background, troughcolor, arrowcolor,
            mainborderwidth, interiorborderwidth, mainrelief, interiorrelief 
         """
         # Extract key and value from **options using Python3 "pop" function:
         #   pop(key[, default])
-        style          = options.pop('style',ttk.Style())
-        pri_background = options.pop('pri_background','light grey')
-        sec_background = options.pop('sec_background','grey70')
-        arrowcolor     = options.pop('arrowcolor','black')
-        mainborderwidth     = options.pop('mainborderwidth', 0)
+        style = options.pop('style', ttk.Style())
+        background = options.pop('background', 'light grey')
+        troughcolor = options.pop('troughcolor', 'grey70')
+        arrowcolor = options.pop('arrowcolor', 'black')
+        mainborderwidth = options.pop('mainborderwidth', 0)
         interiorborderwidth = options.pop('interiorborderwidth', 0)
-        mainrelief          = options.pop('mainrelief', 'flat')
-        interiorrelief      = options.pop('interiorrelief', 'flat')
+        mainrelief = options.pop('mainrelief', 'flat')
+        interiorrelief = options.pop('interiorrelief', 'flat')
+
+        def _set_style():
+            """Setup stylenames of outer frame, interior frame and vertical
+            scrollbar."""
+            style.configure('main.TFrame', background=background)
+            style.configure('interior.TFrame', background=background)
+            style.configure('canvas.Vertical.TScrollbar', background=background,
+                            troughcolor=troughcolor, arrowcolor=arrowcolor)
+            style.configure('canvas.Horizontal.TScrollbar',
+                            background=background,
+                            troughcolor=troughcolor, arrowcolor=arrowcolor)
+            style.map('canvas.Vertical.TScrollbar',
+                      background=[('active', background),
+                                  ('!active', background)],
+                      arrowcolor=[('active', arrowcolor),
+                                  ('!active', arrowcolor)])
+            style.map('canvas.Horizontal.TScrollbar',
+                      background=[('active', background),
+                                  ('!active', background)],
+                      arrowcolor=[('active', arrowcolor),
+                                  ('!active', arrowcolor)])
 
         ttk.Frame.__init__(self, parent, style='main.TFrame',
                            borderwidth=mainborderwidth, relief=mainrelief)
+        _set_style()
+        self._create_widgets(interiorborderwidth, interiorrelief, background)
+        self._set_bindings()
 
-        self.__setStyle(style, pri_background, sec_background, arrowcolor)
-
-        self.__createWidgets(mainborderwidth, interiorborderwidth,
-                             mainrelief, interiorrelief,
-                             pri_background)
-        self.__setBindings()
-
-
-    def __setStyle(self, style, pri_background, sec_background, arrowcolor):
-        '''Setup stylenames of outer frame, interior frame and verticle
-           scrollbar'''        
-        style.configure('main.TFrame', background=pri_background)
-        style.configure('interior.TFrame', background=pri_background)
-        style.configure('canvas.Vertical.TScrollbar', background=pri_background,
-                        troughcolor=sec_background, arrowcolor=arrowcolor)
-
-        style.map('canvas.Vertical.TScrollbar',
-            background=[('active',pri_background),('!active',pri_background)],
-            arrowcolor=[('active',arrowcolor),('!active',arrowcolor)])
-
-
-    def __createWidgets(self, mainborderwidth, interiorborderwidth,
-                        mainrelief, interiorrelief, pri_background):
-        '''Create widgets of the scroll frame.'''
-        self.vscrollbar = ttk.Scrollbar(self, orient='vertical',
+    def _create_widgets(self, interiorborderwidth, interiorrelief, background):
+        """Create widgets of the scroll frame."""
+        self.vscrollbar = AutoScrollbar(self, orient='vertical',
                                         style='canvas.Vertical.TScrollbar')
-        self.vscrollbar.pack(side='right', fill='y', expand='false')
+        self.hscrollbar = AutoScrollbar(self, orient='horizontal',
+                                        style='canvas.Horizontal.TScrollbar',
+                                        )
         self.canvas = tk.Canvas(self,
-                                bd=0, #no border
-                                highlightthickness=0, #no focus highlight
-                                yscrollcommand=self.vscrollbar.set,#use self.vscrollbar
-                                background=pri_background #improves resizing appearance
+                                bd=0,  # no border
+                                highlightthickness=0,  # no focus highlight
+                                yscrollcommand=self.vscrollbar.set,  # use self.vscrollbar
+                                xscrollcommand=self.hscrollbar.set,  # use self.vscrollbar
+                                background=background  # improves resizing appearance
                                 )
-        self.canvas.pack(side='left', fill='both', expand='true')
+        self.rowconfigure(0, weight=1)
+        self.columnconfigure(0, weight=1)
+        self.canvas.grid(row=0, column=0, sticky='nsew')
+        self.vscrollbar.grid(row=0, column=1, sticky='nsew')
+        self.hscrollbar.grid(row=1, column=0, sticky='nsew')
         self.vscrollbar.config(command=self.canvas.yview)
+        self.hscrollbar.config(command=self.canvas.xview)
 
         # reset the view
         self.canvas.xview_moveto(0)
@@ -95,105 +106,64 @@ class VerticalScrollFrame(ttk.Frame):
         self.interior = ttk.Frame(self.canvas,
                                   style='interior.TFrame',
                                   borderwidth=interiorborderwidth,
-                                  relief=interiorrelief)
+                                  relief=interiorrelief,
+                                  )
         self.interior_id = self.canvas.create_window(0, 0,
                                                      window=self.interior,
-                                                     anchor='nw')
+                                                     anchor='nw',
+                                                     tags='interior',
+                                                     )
 
 
-    def __setBindings(self):
-        '''Activate binding to configure scroll frame widgets.'''
-        self.canvas.bind('<Configure>',self.__configure_canvas_interiorframe)
-        
+    def _set_bindings(self):
+        """Activate binding to configure scroll frame widgets."""
+        # Internal parameters
+        interior = self.interior
+        canvas = self.canvas
+        interior_id = self.interior_id
 
-    def __configure_canvas_interiorframe(self, event):
-        '''Configure the interior frame size and the canvas scrollregion'''
-        #Force the update of .winfo_width() and winfo_height()
-        self.canvas.update_idletasks() 
+        def _configure_interior(event):
+            # update the scrollbars to match the size of the inner frame
+            canvas.config(scrollregion=(0, 0, interior.winfo_reqwidth(),
+                                        interior.winfo_reqheight())
+                          )
+            if interior.winfo_reqwidth() != canvas.winfo_width():
+                # update the canvas's width to fit the inner frame
+                canvas.config(width=interior.winfo_reqwidth())
 
-        #Internal parameters 
-        interiorReqHeight= self.interior.winfo_reqheight()
-        canvasWidth    = self.canvas.winfo_width()
-        canvasHeight   = self.canvas.winfo_height()
+        def _configure_canvas(event):
+            if interior.winfo_reqwidth() != canvas.winfo_width():
+                # update the inner frame's width to fill the canvas
+                canvas.itemconfigure(interior_id, width=canvas.winfo_reqwidth())
 
-        #Set interior frame width to canvas current width
-        self.canvas.itemconfigure(self.interior_id, width=canvasWidth)
-        
-        # Set interior frame height and canvas scrollregion
-        if canvasHeight > interiorReqHeight:
-            #print('canvasHeight > interiorReqHeight')
-            self.canvas.itemconfigure(self.interior_id,  height=canvasHeight)
-            self.canvas.config(scrollregion="0 0 {0} {1}".
-                               format(canvasWidth, canvasHeight))
-        else:
-            #print('canvasHeight <= interiorReqHeight')
-            self.canvas.itemconfigure(self.interior_id, height=interiorReqHeight)
-            self.canvas.config(scrollregion="0 0 {0} {1}".
-                               format(canvasWidth, interiorReqHeight))
+        def _bind_to_mousewheel_linuxos(event):
+            canvas.bind_all(
+                sequence='<Button-4>',
+                func=lambda event: canvas.yview_scroll(-1, 'units'),
+            )
+            canvas.bind_all(
+                sequence='<Button-5>',
+                func=lambda event: canvas.yview_scroll(1, 'units'),
+            )
 
+        def _unbind_from_mousewheel_linuxos(event):
+            canvas.unbind_all(sequence="<Button-4>")
+            canvas.unbind_all(sequence="<Button-5>")
 
-class App(ttk.Frame):
+        def _bind_to_mousewheel_winos(event):
+            canvas.bind_all(
+                sequence="<MouseWheel>",
+                func=canvas.yview_scroll(int(-1*(event.delta/120)), "units"))
 
-    def __init__(self, parent, *args, **kwargs):
-        BG0 = '#aabfe0' #Blue scheme
-        BG1 = '#4e88e5' #Blue scheme
+        def _unbind_from_mousewheel_winos(event):
+            canvas.unbind_all(sequence="<MouseWheel>")
 
-        ttk.Frame.__init__(self, parent=None, style='App.TFrame', borderwidth=0,
-                           relief='raised', width=390, height=390)
-        self.parent = parent
-        self.parent.title('VerticalScrollFrame')
-        self.parent.geometry('300x350')
-        
-        self.setStyle()
-        self.createWidgets(BG0, BG1)
-        
-        self.rowconfigure(0, weight=1)
-        self.columnconfigure(0, weight=1)
-
-
-    def setStyle(self):
-        style = ttk.Style()
-        style.configure('App.TFrame', background='pink')
-
-
-    def createWidgets(self, BG0, BG1):
-        self.frame = VerticalScrollFrame(self,
-                                        pri_background=BG1,
-                                        sec_background=BG0,
-                                        arrowcolor='white',
-                                        mainborderwidth=10,
-                                        interiorborderwidth=10,
-                                        mainrelief='raised',
-                                        interiorrelief='sunken'
-                                        )
-        self.frame.grid(row=0, column=0, sticky='nsew')
-
-        text="Shrink the window to activate the scrollbar."
-        self.label = tk.Label(background='white', text=text)
-        self.label.grid(row=1, column=0, sticky='nsew')
-
-        buttons = []
-        for i in range(10):
-            buttons.append(ttk.Button(self.frame.interior,
-                                      text="Button " + str(i)))
-            buttons[-1].grid(row=i, column=0, sticky='nsew')
-
-        '''self.textbox = tk.Text(self.frame.interior,
-                                width=30,
-                                height=8,
-                                foreground='white',
-                                background='grey',
-                                borderwidth=3,
-                                relief='sunken')
-        self.textbox.grid(row=1, column=0, sticky='nsew')'''
-               
-
-if __name__ == '__main__':
-    root = tk.Tk()
-    app = App(root)
-    app.grid(row=0, column=0, sticky='nsew')
-    root.rowconfigure(0, weight=1)
-    root.columnconfigure(0, weight=1)
-
-    root.mainloop()
-
+        interior.bind('<Configure>', _configure_interior)
+        canvas.bind('<Configure>', _configure_canvas)
+        system = platform.system()
+        if system in ["Linux"]:
+            canvas.bind('<Enter>', _bind_to_mousewheel_linuxos)
+            canvas.bind('<Leave>', _unbind_from_mousewheel_linuxos)
+        elif system in ["Windows"]:
+            canvas.bind('<Enter>', _bind_to_mousewheel_winos)
+            canvas.bind('<Leave>', _unbind_from_mousewheel_winos)
