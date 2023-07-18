@@ -114,7 +114,6 @@ class VerticalScrollFrame(ttk.Frame):
                                                      tags='interior',
                                                      )
 
-
     def _set_bindings(self):
         """Activate binding to configure scroll frame widgets."""
         # Internal parameters
