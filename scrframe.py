@@ -315,6 +315,8 @@ class Example(ttk.Frame):
     def create_widgets(self, bg0, bg1):
         self.frame = VerticalScrollFrame(self,
                                          background=bg1,
+                                         cbackground=bg1,
+                                         ibackground=bg1,
                                          troughcolor=bg0,
                                          arrowcolor='white',
                                          scrollbarcolor="grey",
