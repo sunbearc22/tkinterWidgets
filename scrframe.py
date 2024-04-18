@@ -64,10 +64,10 @@ class VerticalScrollFrame(ttk.Frame):
         # Extract key and value from **options using Python3 "pop" function:
         #   pop(key[, default])
         style = options.pop('style', ttk.Style())
-        background = options.pop('background', 'pink')
-        cbackground = options.pop('background', 'white')
-        ibackground = options.pop('background', 'skyblue')
-        troughcolor = options.pop('troughcolor', 'grey70')
+        background = options.pop('background', '#E4E4E4')
+        cbackground = options.pop('cbackground', '#E4E4E4')
+        ibackground = options.pop('ibackground', '#E4E4E4')
+        troughcolor = options.pop('troughcolor', 'white')
         arrowcolor = options.pop('arrowcolor', 'black')
         mainborderwidth = options.pop('mainborderwidth', 0)
         interiorborderwidth = options.pop('interiorborderwidth', 0)
@@ -78,10 +78,10 @@ class VerticalScrollFrame(ttk.Frame):
             """Setup stylenames of outer frame, interior frame and vertical
             scrollbar."""
             style.configure('main.TFrame', background=background)
+            style.configure('interior.TFrame', background=ibackground)
             style.configure('canvas.Vertical.TScrollbar',
                             background=cbackground, troughcolor=troughcolor,
                             arrowcolor=arrowcolor)
-            style.configure('interior.TFrame', background=ibackground)
             style.configure('canvas.Horizontal.TScrollbar',
                             background=background,
                             troughcolor=troughcolor, arrowcolor=arrowcolor)
@@ -99,7 +99,7 @@ class VerticalScrollFrame(ttk.Frame):
         ttk.Frame.__init__(self, master, style='main.TFrame',
                            borderwidth=mainborderwidth, relief=mainrelief)
         _set_style()
-        self._create_widgets(interiorborderwidth, interiorrelief, background)
+        self._create_widgets(interiorborderwidth, interiorrelief, cbackground)
         self._set_bindings()
 
     def _create_widgets(self, interiorborderwidth, interiorrelief, background):
